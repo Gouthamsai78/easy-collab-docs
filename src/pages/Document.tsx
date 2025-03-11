@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getDocument, DocumentData } from '../utils/documentUtils';
+import { supabase } from '@/integrations/supabase/client';
 import Header from '../components/Header';
 import ShareCode from '../components/ShareCode';
 import DocumentEditor from '../components/DocumentEditor';
@@ -23,30 +24,34 @@ const Document: React.FC = () => {
       return;
     }
 
-    try {
-      const doc = getDocument(id);
-      
-      if (doc) {
-        setDocument(doc);
-      } else {
-        toast.error("Document not found");
+    const fetchDocument = async () => {
+      try {
+        const doc = await getDocument(id);
+        
+        if (doc) {
+          setDocument(doc);
+        } else {
+          toast.error("Document not found");
+          navigate('/');
+        }
+      } catch (error) {
+        console.error('Error loading document:', error);
+        toast.error("Failed to load document");
         navigate('/');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading document:', error);
-      toast.error("Failed to load document");
-      navigate('/');
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    fetchDocument();
   }, [id, navigate]);
 
   // Refresh document data
-  const refreshDocument = () => {
+  const refreshDocument = async () => {
     if (!id) return;
     
     try {
-      const doc = getDocument(id);
+      const doc = await getDocument(id);
       
       if (doc) {
         setDocument(doc);
@@ -56,13 +61,32 @@ const Document: React.FC = () => {
     }
   };
 
-  // Set up periodic refresh (real app would use WebSockets)
+  // Set up realtime subscription
   useEffect(() => {
-    const interval = setInterval(() => {
-      refreshDocument();
-    }, 5000);
-    
-    return () => clearInterval(interval);
+    if (!id) return;
+
+    // Subscribe to document changes
+    const documentChannel = supabase
+      .channel('document-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'documents', filter: `id=eq.${id}` },
+        () => {
+          console.log('Document changed, refreshing...');
+          refreshDocument();
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks', filter: `document_id=eq.${id}` },
+        () => {
+          console.log('Tasks changed, refreshing...');
+          refreshDocument();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(documentChannel);
+    };
   }, [id]);
 
   if (loading) {

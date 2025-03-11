@@ -12,7 +12,7 @@ const JoinDocument: React.FC = () => {
   const [isJoining, setIsJoining] = useState(false);
   const navigate = useNavigate();
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!code.trim()) {
       toast.error("Please enter a document code");
       return;
@@ -21,7 +21,7 @@ const JoinDocument: React.FC = () => {
     setIsJoining(true);
     
     try {
-      const document = getDocument(code.trim().toUpperCase());
+      const document = await getDocument(code.trim().toUpperCase());
       
       if (document) {
         toast.success("Document found!");
@@ -32,11 +32,11 @@ const JoinDocument: React.FC = () => {
         }, 300);
       } else {
         toast.error("Document not found. Please check the code and try again.");
-        setIsJoining(false);
       }
     } catch (error) {
       console.error('Error joining document:', error);
       toast.error("Failed to join document. Please try again.");
+    } finally {
       setIsJoining(false);
     }
   };

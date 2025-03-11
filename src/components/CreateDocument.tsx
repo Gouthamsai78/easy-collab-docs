@@ -12,12 +12,12 @@ const CreateDocument: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     setIsCreating(true);
     
     try {
       const documentTitle = title.trim() || 'Untitled Document';
-      const newDocument = createDocument(documentTitle);
+      const newDocument = await createDocument(documentTitle);
       
       toast.success("Document created successfully!");
       
@@ -28,6 +28,7 @@ const CreateDocument: React.FC = () => {
     } catch (error) {
       console.error('Error creating document:', error);
       toast.error("Failed to create document. Please try again.");
+    } finally {
       setIsCreating(false);
     }
   };

@@ -1,5 +1,6 @@
 
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // Document type definition
 export interface DocumentData {
@@ -30,23 +31,107 @@ export function generateDocumentCode(): string {
   return result;
 }
 
-// Simulate saving document to local storage (in a real app this would connect to a backend)
-export function saveDocument(document: DocumentData): void {
+// Save document to Supabase
+export async function saveDocument(document: DocumentData): Promise<void> {
   try {
-    const documentsMap = getDocumentsMap();
-    documentsMap[document.id] = document;
-    localStorage.setItem('easycollab_documents', JSON.stringify(documentsMap));
+    // First, save the document to the documents table
+    const { error: documentError } = await supabase
+      .from('documents')
+      .upsert({
+        id: document.id,
+        title: document.title,
+        content: document.content,
+        last_modified: new Date().toISOString()
+      })
+      .select();
+
+    if (documentError) throw documentError;
+
+    // Get existing tasks for this document
+    const { data: existingTasks } = await supabase
+      .from('tasks')
+      .select('id')
+      .eq('document_id', document.id);
+    
+    // Create a map of existing task IDs for quick lookup
+    const existingTaskIds = new Set((existingTasks || []).map(task => task.id));
+    
+    // Process each task - either update or create new
+    for (const task of document.tasks) {
+      const { error: taskError } = await supabase
+        .from('tasks')
+        .upsert({
+          id: task.id,
+          document_id: document.id,
+          text: task.text,
+          completed: task.completed,
+          created_at: new Date(task.createdAt).toISOString()
+        });
+      
+      if (taskError) throw taskError;
+      
+      // Remove this ID from the set as we've processed it
+      existingTaskIds.delete(task.id);
+    }
+    
+    // Delete any tasks that are no longer in the document
+    if (existingTaskIds.size > 0) {
+      const { error: deleteError } = await supabase
+        .from('tasks')
+        .delete()
+        .in('id', Array.from(existingTaskIds));
+      
+      if (deleteError) throw deleteError;
+    }
   } catch (error) {
     console.error('Error saving document:', error);
     toast.error("Failed to save document. Please try again.");
+    throw error;
   }
 }
 
 // Get a document by its ID
-export function getDocument(id: string): DocumentData | null {
+export async function getDocument(id: string): Promise<DocumentData | null> {
   try {
-    const documentsMap = getDocumentsMap();
-    return documentsMap[id] || null;
+    // Get the document
+    const { data: document, error: documentError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (documentError) {
+      if (documentError.code === 'PGRST116') {
+        // Document not found
+        return null;
+      }
+      throw documentError;
+    }
+    
+    // Get tasks for this document
+    const { data: tasks, error: tasksError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('document_id', id);
+    
+    if (tasksError) throw tasksError;
+    
+    // Convert the data to our application format
+    const documentData: DocumentData = {
+      id: document.id,
+      title: document.title,
+      content: document.content || '',
+      tasks: (tasks || []).map(task => ({
+        id: task.id,
+        text: task.text,
+        completed: task.completed,
+        createdAt: new Date(task.created_at).getTime()
+      })),
+      createdAt: new Date(document.created_at).getTime(),
+      lastModified: new Date(document.last_modified).getTime()
+    };
+    
+    return documentData;
   } catch (error) {
     console.error('Error getting document:', error);
     toast.error("Failed to retrieve document.");
@@ -54,19 +139,8 @@ export function getDocument(id: string): DocumentData | null {
   }
 }
 
-// Get all documents map from localStorage
-export function getDocumentsMap(): Record<string, DocumentData> {
-  try {
-    const documents = localStorage.getItem('easycollab_documents');
-    return documents ? JSON.parse(documents) : {};
-  } catch (error) {
-    console.error('Error getting documents:', error);
-    return {};
-  }
-}
-
 // Create a new document
-export function createDocument(title: string = 'Untitled Document'): DocumentData {
+export async function createDocument(title: string = 'Untitled Document'): Promise<DocumentData> {
   const id = generateDocumentCode();
   const now = Date.now();
   
@@ -79,13 +153,13 @@ export function createDocument(title: string = 'Untitled Document'): DocumentDat
     lastModified: now
   };
   
-  saveDocument(newDocument);
+  await saveDocument(newDocument);
   return newDocument;
 }
 
 // Add a task to a document
-export function addTask(documentId: string, taskText: string): TaskItem | null {
-  const document = getDocument(documentId);
+export async function addTask(documentId: string, taskText: string): Promise<TaskItem | null> {
+  const document = await getDocument(documentId);
   
   if (!document) {
     toast.error("Document not found");
@@ -102,13 +176,13 @@ export function addTask(documentId: string, taskText: string): TaskItem | null {
   document.tasks.push(newTask);
   document.lastModified = Date.now();
   
-  saveDocument(document);
+  await saveDocument(document);
   return newTask;
 }
 
 // Update a task in a document
-export function updateTask(documentId: string, taskId: string, updates: Partial<TaskItem>): boolean {
-  const document = getDocument(documentId);
+export async function updateTask(documentId: string, taskId: string, updates: Partial<TaskItem>): Promise<boolean> {
+  const document = await getDocument(documentId);
   
   if (!document) {
     toast.error("Document not found");
@@ -128,13 +202,13 @@ export function updateTask(documentId: string, taskId: string, updates: Partial<
   };
   
   document.lastModified = Date.now();
-  saveDocument(document);
+  await saveDocument(document);
   return true;
 }
 
 // Delete a task from a document
-export function deleteTask(documentId: string, taskId: string): boolean {
-  const document = getDocument(documentId);
+export async function deleteTask(documentId: string, taskId: string): Promise<boolean> {
+  const document = await getDocument(documentId);
   
   if (!document) {
     toast.error("Document not found");
@@ -150,13 +224,13 @@ export function deleteTask(documentId: string, taskId: string): boolean {
   
   document.tasks.splice(taskIndex, 1);
   document.lastModified = Date.now();
-  saveDocument(document);
+  await saveDocument(document);
   return true;
 }
 
 // Update document content
-export function updateDocumentContent(documentId: string, content: string): boolean {
-  const document = getDocument(documentId);
+export async function updateDocumentContent(documentId: string, content: string): Promise<boolean> {
+  const document = await getDocument(documentId);
   
   if (!document) {
     toast.error("Document not found");
@@ -165,13 +239,13 @@ export function updateDocumentContent(documentId: string, content: string): bool
   
   document.content = content;
   document.lastModified = Date.now();
-  saveDocument(document);
+  await saveDocument(document);
   return true;
 }
 
 // Update document title
-export function updateDocumentTitle(documentId: string, title: string): boolean {
-  const document = getDocument(documentId);
+export async function updateDocumentTitle(documentId: string, title: string): Promise<boolean> {
+  const document = await getDocument(documentId);
   
   if (!document) {
     toast.error("Document not found");
@@ -180,7 +254,7 @@ export function updateDocumentTitle(documentId: string, title: string): boolean 
   
   document.title = title;
   document.lastModified = Date.now();
-  saveDocument(document);
+  await saveDocument(document);
   return true;
 }
 

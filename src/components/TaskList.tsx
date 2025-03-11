@@ -16,7 +16,7 @@ const TaskList: React.FC<TaskListProps> = ({ document, onDocumentUpdate }) => {
   const [newTaskText, setNewTaskText] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (!newTaskText.trim()) {
       toast.error("Task text cannot be empty");
       return;
@@ -25,20 +25,20 @@ const TaskList: React.FC<TaskListProps> = ({ document, onDocumentUpdate }) => {
     setIsAdding(true);
     
     try {
-      addTask(document.id, newTaskText.trim());
+      await addTask(document.id, newTaskText.trim());
       setNewTaskText('');
       onDocumentUpdate();
-      setIsAdding(false);
     } catch (error) {
       console.error('Error adding task:', error);
       toast.error("Failed to add task");
+    } finally {
       setIsAdding(false);
     }
   };
 
-  const handleToggleTask = (task: TaskItem) => {
+  const handleToggleTask = async (task: TaskItem) => {
     try {
-      updateTask(document.id, task.id, { completed: !task.completed });
+      await updateTask(document.id, task.id, { completed: !task.completed });
       onDocumentUpdate();
     } catch (error) {
       console.error('Error toggling task:', error);
@@ -46,9 +46,9 @@ const TaskList: React.FC<TaskListProps> = ({ document, onDocumentUpdate }) => {
     }
   };
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
     try {
-      deleteTask(document.id, taskId);
+      await deleteTask(document.id, taskId);
       onDocumentUpdate();
       toast.success("Task deleted");
     } catch (error) {
@@ -98,14 +98,16 @@ const TaskList: React.FC<TaskListProps> = ({ document, onDocumentUpdate }) => {
             document.tasks.map((task) => (
               <div 
                 key={task.id} 
-                className={`task-item group ${task.completed ? 'completed' : ''}`}
+                className={`task-item group flex items-center p-2 hover:bg-accent/40 rounded-md ${task.completed ? 'completed' : ''}`}
               >
                 <Checkbox
                   checked={task.completed}
                   onCheckedChange={() => handleToggleTask(task)}
                   className="h-5 w-5 mt-0.5 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                 />
-                <span className="task-text flex-1">{task.text}</span>
+                <span className={`ml-3 flex-1 ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                  {task.text}
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"
