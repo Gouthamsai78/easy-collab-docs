@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +8,8 @@ import ShareCode from '../components/ShareCode';
 import DocumentEditor from '../components/DocumentEditor';
 import TaskList from '../components/TaskList';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { FilePlus } from 'lucide-react';
 
 const Document: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -89,6 +90,18 @@ const Document: React.FC = () => {
     };
   }, [id]);
 
+  // Add function to handle new document creation
+  const handleCreateNewDocument = async () => {
+    try {
+      const doc = await createDocument();
+      toast.success("New document created!");
+      navigate(`/document/${doc.id}`);
+    } catch (error) {
+      console.error('Error creating document:', error);
+      toast.error("Failed to create new document");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -112,8 +125,16 @@ const Document: React.FC = () => {
       <Header title={document.title} documentId={document.id} showBack={true} />
       
       <main className="flex-1 container max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-6">
+        <div className="flex justify-between items-center mb-6">
           <ShareCode documentId={document.id} />
+          <Button
+            onClick={handleCreateNewDocument}
+            variant="outline"
+            className="ml-4"
+          >
+            <FilePlus className="w-4 h-4 mr-2" />
+            New Document
+          </Button>
         </div>
         
         <Tabs 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { updateDocumentContent, updateDocumentTitle, formatDate, DocumentData } from '../utils/documentUtils';
 import { Input } from '@/components/ui/input';
@@ -17,7 +16,6 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onDocumentUpd
   const contentRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize content from document
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.innerHTML = document.content;
@@ -27,12 +25,10 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onDocumentUpd
     setLastSaved(formatDate(document.lastModified));
   }, [document]);
 
-  // Handle title change
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
     
-    // Debounce saving title changes
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
@@ -51,14 +47,12 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onDocumentUpd
     }, 500);
   };
 
-  // Handle content change
   const handleContentChange = () => {
     if (!contentRef.current) return;
     
     const newContent = contentRef.current.innerHTML;
     setContent(newContent);
     
-    // Debounce saving content changes
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
@@ -77,7 +71,6 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onDocumentUpd
     }, 500);
   };
 
-  // Clean up timeout on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
@@ -105,7 +98,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ document, onDocumentUpd
         suppressContentEditableWarning
         onInput={handleContentChange}
         onBlur={handleContentChange}
-        placeholder="Start typing your document..."
+        data-placeholder="Start typing your document..."
       />
       
       <div className="text-xs text-muted-foreground mt-4 animate-fade-in flex items-center">
