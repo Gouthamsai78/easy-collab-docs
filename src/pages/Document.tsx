@@ -10,7 +10,7 @@ import DocumentEditor from '../components/DocumentEditor';
 import TaskList from '../components/TaskList';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { FilePlus } from 'lucide-react';
+import { FilePlus, ListFilter } from 'lucide-react';
 
 const Document: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -156,14 +156,22 @@ const Document: React.FC = () => {
       <main className="flex-1 container max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <ShareCode documentId={document.id} />
-          <Button
-            onClick={handleCreateNewDocument}
-            variant="outline"
-            className="ml-4"
-          >
-            <FilePlus className="w-4 h-4 mr-2" />
-            New Document
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => navigate('/documents')}
+              variant="outline"
+            >
+              <ListFilter className="w-4 h-4 mr-2" />
+              All Documents
+            </Button>
+            <Button
+              onClick={handleCreateNewDocument}
+              variant="outline"
+            >
+              <FilePlus className="w-4 h-4 mr-2" />
+              New Document
+            </Button>
+          </div>
         </div>
         
         <Tabs 

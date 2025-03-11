@@ -182,6 +182,46 @@ export async function createDocument(title: string = 'Untitled Document'): Promi
   }
 }
 
+// Get all documents from Supabase
+export async function getAllDocuments(): Promise<DocumentData[]> {
+  try {
+    console.log("Fetching all documents");
+    
+    const { data: documents, error } = await supabase
+      .from('documents')
+      .select('*')
+      .order('last_modified', { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching documents:", error);
+      toast.error("Failed to fetch documents");
+      return [];
+    }
+    
+    if (!documents || documents.length === 0) {
+      console.log("No documents found");
+      return [];
+    }
+    
+    // Convert the data to our application format
+    const documentsList: DocumentData[] = documents.map(doc => ({
+      id: doc.id,
+      title: doc.title,
+      content: doc.content || '',
+      tasks: [], // We don't need to load tasks here for performance reasons
+      createdAt: new Date(doc.created_at).getTime(),
+      lastModified: new Date(doc.last_modified).getTime()
+    }));
+    
+    console.log(`Retrieved ${documentsList.length} documents`);
+    return documentsList;
+  } catch (error) {
+    console.error('Error getting documents:', error);
+    toast.error("Failed to retrieve documents");
+    return [];
+  }
+}
+
 // Add a task to a document
 export async function addTask(documentId: string, taskText: string): Promise<TaskItem | null> {
   const document = await getDocument(documentId);

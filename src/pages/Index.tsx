@@ -1,8 +1,11 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import CreateDocument from '../components/CreateDocument';
 import JoinDocument from '../components/JoinDocument';
+import { Button } from '@/components/ui/button';
+import { ListFilter } from 'lucide-react';
 
 const Index: React.FC = () => {
   return (
@@ -11,7 +14,7 @@ const Index: React.FC = () => {
       
       <main className="flex-1 container max-w-7xl mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12 animate-fade-in">
+          <div className="text-center mb-8 animate-fade-in">
             <div className="space-y-4">
               <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-balance">
                 Collaborative documents <span className="relative inline-block">
@@ -24,6 +27,15 @@ const Index: React.FC = () => {
                 No sign-up required.
               </p>
             </div>
+          </div>
+          
+          <div className="flex justify-center mb-6">
+            <Link to="/documents">
+              <Button variant="outline" className="animate-fade-in">
+                <ListFilter className="w-4 h-4 mr-2" />
+                View All Documents
+              </Button>
+            </Link>
           </div>
           
           <div className="grid md:grid-cols-2 gap-8 mb-16">
