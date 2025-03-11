@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -34,6 +33,7 @@ export function generateDocumentCode(): string {
 // Save document to Supabase
 export async function saveDocument(document: DocumentData): Promise<void> {
   try {
+    console.log("Saving document:", document);
     // First, save the document to the documents table
     const { error: documentError } = await supabase
       .from('documents')
@@ -42,10 +42,12 @@ export async function saveDocument(document: DocumentData): Promise<void> {
         title: document.title,
         content: document.content,
         last_modified: new Date().toISOString()
-      })
-      .select();
+      });
 
-    if (documentError) throw documentError;
+    if (documentError) {
+      console.error("Error upserting document:", documentError);
+      throw documentError;
+    }
 
     // Get existing tasks for this document
     const { data: existingTasks } = await supabase
@@ -68,7 +70,10 @@ export async function saveDocument(document: DocumentData): Promise<void> {
           created_at: new Date(task.createdAt).toISOString()
         });
       
-      if (taskError) throw taskError;
+      if (taskError) {
+        console.error("Error upserting task:", taskError);
+        throw taskError;
+      }
       
       // Remove this ID from the set as we've processed it
       existingTaskIds.delete(task.id);
@@ -81,8 +86,13 @@ export async function saveDocument(document: DocumentData): Promise<void> {
         .delete()
         .in('id', Array.from(existingTaskIds));
       
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error("Error deleting tasks:", deleteError);
+        throw deleteError;
+      }
     }
+    
+    console.log("Document saved successfully");
   } catch (error) {
     console.error('Error saving document:', error);
     toast.error("Failed to save document. Please try again.");
@@ -93,6 +103,7 @@ export async function saveDocument(document: DocumentData): Promise<void> {
 // Get a document by its ID
 export async function getDocument(id: string): Promise<DocumentData | null> {
   try {
+    console.log("Getting document with ID:", id);
     // Get the document
     const { data: document, error: documentError } = await supabase
       .from('documents')
@@ -102,9 +113,11 @@ export async function getDocument(id: string): Promise<DocumentData | null> {
     
     if (documentError) {
       if (documentError.code === 'PGRST116') {
+        console.error("Document not found:", id);
         // Document not found
         return null;
       }
+      console.error("Error fetching document:", documentError);
       throw documentError;
     }
     
@@ -114,7 +127,10 @@ export async function getDocument(id: string): Promise<DocumentData | null> {
       .select('*')
       .eq('document_id', id);
     
-    if (tasksError) throw tasksError;
+    if (tasksError) {
+      console.error("Error fetching tasks:", tasksError);
+      throw tasksError;
+    }
     
     // Convert the data to our application format
     const documentData: DocumentData = {
@@ -131,6 +147,7 @@ export async function getDocument(id: string): Promise<DocumentData | null> {
       lastModified: new Date(document.last_modified).getTime()
     };
     
+    console.log("Document retrieved successfully:", documentData);
     return documentData;
   } catch (error) {
     console.error('Error getting document:', error);
@@ -141,20 +158,28 @@ export async function getDocument(id: string): Promise<DocumentData | null> {
 
 // Create a new document
 export async function createDocument(title: string = 'Untitled Document'): Promise<DocumentData> {
-  const id = generateDocumentCode();
-  const now = Date.now();
-  
-  const newDocument: DocumentData = {
-    id,
-    title,
-    content: '',
-    tasks: [],
-    createdAt: now,
-    lastModified: now
-  };
-  
-  await saveDocument(newDocument);
-  return newDocument;
+  try {
+    const id = generateDocumentCode();
+    const now = Date.now();
+    
+    console.log("Creating new document with ID:", id);
+    
+    const newDocument: DocumentData = {
+      id,
+      title,
+      content: '',
+      tasks: [],
+      createdAt: now,
+      lastModified: now
+    };
+    
+    await saveDocument(newDocument);
+    console.log("Document created successfully:", newDocument);
+    return newDocument;
+  } catch (error) {
+    console.error("Error creating document:", error);
+    throw error;
+  }
 }
 
 // Add a task to a document

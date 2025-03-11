@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,11 +27,15 @@ const Document: React.FC = () => {
 
     const fetchDocument = async () => {
       try {
+        setLoading(true);
+        console.log("Fetching document with ID:", id);
         const doc = await getDocument(id);
         
         if (doc) {
+          console.log("Document found:", doc);
           setDocument(doc);
         } else {
+          console.error("Document not found with ID:", id);
           toast.error("Document not found");
           navigate('/');
         }
@@ -50,9 +55,11 @@ const Document: React.FC = () => {
     if (!id) return;
     
     try {
+      console.log("Refreshing document with ID:", id);
       const doc = await getDocument(id);
       
       if (doc) {
+        console.log("Document refreshed:", doc);
         setDocument(doc);
       }
     } catch (error) {
@@ -67,15 +74,15 @@ const Document: React.FC = () => {
       .channel('document-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'documents', filter: `id=eq.${id}` },
-        () => {
-          console.log('Document changed, refreshing...');
+        (payload) => {
+          console.log('Document changed, refreshing...', payload);
           refreshDocument();
         }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'tasks', filter: `document_id=eq.${id}` },
-        () => {
-          console.log('Tasks changed, refreshing...');
+        (payload) => {
+          console.log('Tasks changed, refreshing...', payload);
           refreshDocument();
         }
       )
@@ -88,12 +95,17 @@ const Document: React.FC = () => {
 
   const handleCreateNewDocument = async () => {
     try {
+      setLoading(true);
       const doc = await createDocument();
+      console.log("New document created:", doc);
+      
       toast.success("New document created!");
       navigate(`/document/${doc.id}`);
     } catch (error) {
       console.error('Error creating document:', error);
       toast.error("Failed to create new document");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -112,7 +124,29 @@ const Document: React.FC = () => {
   }
 
   if (!document) {
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header showBack={true} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center p-8 max-w-md mx-auto text-center">
+            <div className="text-muted-foreground text-4xl mb-4">😕</div>
+            <h2 className="text-xl font-semibold mb-2">Document Not Found</h2>
+            <p className="text-muted-foreground mb-6">
+              The document you're looking for doesn't exist or couldn't be loaded.
+            </p>
+            <div className="flex gap-4">
+              <Button onClick={() => navigate('/')}>
+                Go Home
+              </Button>
+              <Button variant="outline" onClick={handleCreateNewDocument}>
+                <FilePlus className="w-4 h-4 mr-2" />
+                Create New Document
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
