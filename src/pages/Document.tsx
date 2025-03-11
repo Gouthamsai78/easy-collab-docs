@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getDocument, DocumentData } from '../utils/documentUtils';
+import { getDocument, DocumentData, createDocument } from '../utils/documentUtils';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '../components/Header';
 import ShareCode from '../components/ShareCode';
@@ -18,7 +18,6 @@ const Document: React.FC = () => {
   const [activeTab, setActiveTab] = useState('document');
   const navigate = useNavigate();
 
-  // Load document data
   useEffect(() => {
     if (!id) {
       navigate('/');
@@ -47,7 +46,6 @@ const Document: React.FC = () => {
     fetchDocument();
   }, [id, navigate]);
 
-  // Refresh document data
   const refreshDocument = async () => {
     if (!id) return;
     
@@ -62,11 +60,9 @@ const Document: React.FC = () => {
     }
   };
 
-  // Set up realtime subscription
   useEffect(() => {
     if (!id) return;
 
-    // Subscribe to document changes
     const documentChannel = supabase
       .channel('document-changes')
       .on('postgres_changes', 
@@ -90,7 +86,6 @@ const Document: React.FC = () => {
     };
   }, [id]);
 
-  // Add function to handle new document creation
   const handleCreateNewDocument = async () => {
     try {
       const doc = await createDocument();
